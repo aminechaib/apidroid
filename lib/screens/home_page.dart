@@ -1,3 +1,6 @@
+// lib/screens/home_page.dart
+// CORRECTED FULL FILE
+
 import 'package:flutter/material.dart';
 import '../models/project.dart';
 import '../services/api_service.dart';
@@ -7,15 +10,14 @@ import 'task_list_page.dart';
 import 'admin/admin_dashboard_page.dart';
 import '../utils/app_theme.dart';
 
-// 1. UPDATED: The data model now holds the list of permission slugs
 class HomePageData {
   final Map<String, dynamic> user;
-  final List<String> permissions; // <-- NEW
+  final List<String> permissions;
   final List<Project> projects;
 
   HomePageData({
     required this.user,
-    required this.permissions, // <-- NEW
+    required this.permissions,
     required this.projects,
   });
 }
@@ -36,23 +38,19 @@ class _HomePageState extends State<HomePage> {
     _dataFuture = _loadData();
   }
 
-  // 2. UPDATED: The load method now parses the new API response
   Future<HomePageData> _loadData() async {
     try {
-      // We now only need to wait for two API calls
       final results = await Future.wait([
-        _apiService.getCurrentUser(), // This now returns user AND permissions
+        _apiService.getCurrentUser(),
         _apiService.getProjects(),
       ]);
 
-      // Safely parse the user and permissions data
       final userData = results[0] as Map<String, dynamic>? ?? {};
       final user = userData['user'] as Map<String, dynamic>? ?? {};
       final permissions = List<String>.from(
         userData['permissions'] as List? ?? [],
       );
 
-      // Safely parse the project data
       final projectData = results[1] as List<dynamic>? ?? [];
       final projects = projectData
           .map((json) => Project.fromJson(json))
@@ -95,21 +93,18 @@ class _HomePageState extends State<HomePage> {
 
           final homeData = snapshot.data!;
           final projects = homeData.projects;
-          // 3. NEW: Check for specific permissions
           final bool canManageUsers = homeData.permissions.contains(
             'manage-users',
           );
           final bool canManageRoles = homeData.permissions.contains(
             'manage-roles',
           );
-          // The dashboard button is shown if the user has EITHER permission
           final bool showDashboardButton = canManageUsers || canManageRoles;
 
           return Scaffold(
             appBar: AppBar(
               title: const Text('Projects'),
               actions: [
-                // 4. UPDATED: The logic is now based on permissions
                 if (showDashboardButton)
                   IconButton(
                     icon: const Icon(Icons.dashboard_customize),
@@ -117,7 +112,6 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          // Pass the permissions to the dashboard so it knows what to show
                           builder: (context) => AdminDashboardPage(
                             canManageUsers: canManageUsers,
                             canManageRoles: canManageRoles,
@@ -145,6 +139,7 @@ class _HomePageState extends State<HomePage> {
                           vertical: 8,
                         ),
                         color: const Color(0xFF2C3A4A),
+                        // THIS IS THE CORRECTED WIDGET:
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
                           title: Text(
@@ -164,11 +159,15 @@ class _HomePageState extends State<HomePage> {
                             Icons.chevron_right,
                             color: AppTheme.primaryText,
                           ),
+                          // THE ONTAP IS A PROPERTY OF LISTTILE
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    TaskListPage(project: project),
+                                builder: (context) => TaskListPage(
+                                  project: project,
+                                  // THE PERMISSIONS ARE PASSED HERE
+                                  permissions: homeData.permissions,
+                                ),
                               ),
                             );
                           },

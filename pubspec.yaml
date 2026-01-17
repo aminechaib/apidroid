@@ -1,6 +1,6 @@
 name: tmgdroid
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -25,9 +25,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter_launcher_icons:
+  image_path: assets/images/prg.png
+
   android: true
   ios: false
-  image_path: assets/images/prg.png
+
+  windows:
+    generate: true
+    icon_size: 256
 
 flutter:
   uses-material-design: true

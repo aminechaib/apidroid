@@ -1,13 +1,23 @@
+// lib/screens/task_list_page.dart
+
 import 'package:flutter/material.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../utils/app_theme.dart';
-import 'widgets/add_task_form.dart'; // 1. IMPORT THE NEW FORM WIDGET
+import 'task_detail_page.dart'; // CHANGED: Import the (soon to be created) detail page
+import 'widgets/add_task_form.dart';
 
 class TaskListPage extends StatefulWidget {
   final Project project;
-  const TaskListPage({super.key, required this.project});
+  // CHANGED: We now need permissions to pass them to the detail page
+  final List<String> permissions;
+
+  const TaskListPage({
+    super.key,
+    required this.project,
+    required this.permissions, // CHANGED: Add to constructor
+  });
 
   @override
   State<TaskListPage> createState() => _TaskListPageState();
@@ -27,25 +37,23 @@ class _TaskListPageState extends State<TaskListPage> {
     final allTasksData = await _apiService.getTasks();
     final filteredTasks = allTasksData
         .where((taskJson) => taskJson['project']['id'] == widget.project.id)
-        .map((taskJson) => Task.fromJson(taskJson))
+        // CHANGED: Use the new named constructor
+        .map((taskJson) => Task.fromListJson(taskJson))
         .toList();
     return filteredTasks;
   }
 
-  // 2. ADD METHOD TO REFRESH THE TASK LIST
   void _refreshTasks() {
     setState(() {
       _tasksFuture = _loadTasks();
     });
   }
 
-  // 3. ADD METHOD TO SHOW THE FORM
   void _showAddTaskForm() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // CORRECTED LINE:
-      backgroundColor: AppTheme.primaryBackground, // Use the correct color name
+      backgroundColor: AppTheme.primaryBackground,
       builder: (context) {
         return AddTaskForm(
           projectId: widget.project.id,
@@ -55,11 +63,24 @@ class _TaskListPageState extends State<TaskListPage> {
     );
   }
 
+  // CHANGED: Add navigation method
+  void _navigateToTaskDetail(Task task) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => TaskDetailPage(
+              taskId: task.id,
+              permissions: widget.permissions, // Pass permissions along
+            ),
+          ),
+        )
+        .then((_) => _refreshTasks()); // Refresh list when returning
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.project.name)),
-      // 4. ADD THE FLOATING ACTION BUTTON
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddTaskForm,
         backgroundColor: AppTheme.primaryColor,
@@ -68,7 +89,6 @@ class _TaskListPageState extends State<TaskListPage> {
       body: FutureBuilder<List<Task>>(
         future: _tasksFuture,
         builder: (context, snapshot) {
-          // ... (The FutureBuilder and ListView code remains exactly the same)
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -87,77 +107,96 @@ class _TaskListPageState extends State<TaskListPage> {
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: const Color(0xFF2C3A4A),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              task.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          if (task.assignedUserNames.isNotEmpty)
-                            _buildUserAvatars(task.assignedUserNames),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: Color(
-                                Task.colorFromHex(task.priorityColor),
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            task.priorityName,
-                            style: TextStyle(
-                              color: AppTheme.primaryText.withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Color(
-                                Task.colorFromHex(task.statusColor),
-                              ).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              task.statusName,
-                              style: TextStyle(
-                                color: Color(
-                                  Task.colorFromHex(task.statusColor),
+              // CHANGED: Wrap Card with InkWell for tap functionality
+              return InkWell(
+                onTap: () => _navigateToTaskDetail(task),
+                child: Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: const Color(0xFF2C3A4A),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                // CHANGED: Use 'title' instead of 'name'
+                                task.title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            if (task.assignedUserNames.isNotEmpty)
+                              _buildUserAvatars(task.assignedUserNames),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                // CHANGED: Get color from the priority object
+                                color: Color(
+                                  Task.colorFromHex(
+                                    task.priority.color ?? '#cccccc',
+                                  ),
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              // CHANGED: Get name from the priority object
+                              task.priority.name,
+                              style: TextStyle(
+                                color: AppTheme.primaryText.withOpacity(0.7),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                // CHANGED: Get color from the status object
+                                color: Color(
+                                  Task.colorFromHex(
+                                    task.status.color ?? '#cccccc',
+                                  ),
+                                ).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                // CHANGED: Get name from the status object
+                                task.status.name,
+                                style: TextStyle(
+                                  // CHANGED: Get color from the status object
+                                  color: Color(
+                                    Task.colorFromHex(
+                                      task.status.color ?? '#cccccc',
+                                    ),
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -169,6 +208,7 @@ class _TaskListPageState extends State<TaskListPage> {
   }
 
   Widget _buildUserAvatars(List<String> userNames) {
+    // ... (This widget remains unchanged)
     final displayUsers = userNames.length > 3
         ? userNames.sublist(0, 3)
         : userNames;
