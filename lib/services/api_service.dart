@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'storage_service.dart';
-
+import '../models/task.dart';
 // A helper class to hold the result of an API call
 class ApiResponse {
   final bool success;
@@ -330,6 +330,34 @@ Future<bool> createRole(String name) async {
       return false;
     }
   }
+
+  // In lib/services/api_service.dart, inside the ApiService class
+
+  // --- Get Single Task by ID ---
+  Future<Task> getTaskById(int taskId) async {
+    final headers = await _getAuthHeaders();
+    if (headers == null) {
+      throw Exception('Authentication token not found.');
+    }
+
+    final url = Uri.parse('$baseUrl/tasks/$taskId');
+    try {
+      final response = await http.get(url, headers: headers );
+      if (response.statusCode == 200) {
+        // As per your OpenAPI spec, the single task response is not in a 'data' key
+        final data = jsonDecode(response.body);
+        // Use the .fromDetailJson constructor we created
+        return Task.fromDetailJson(data);
+      } else {
+        print('Failed to fetch task: ${response.statusCode}');
+        throw Exception('Failed to load task details');
+      }
+    } catch (e) {
+      print('An error occurred while fetching task: $e');
+      throw Exception('An error occurred while fetching task');
+    }
+  }
+
 }
 
 
