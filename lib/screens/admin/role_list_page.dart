@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/role.dart';
 import '../../services/api_service.dart';
 import '../../utils/app_theme.dart';
-import 'role_edit_page.dart'; // 1. IMPORT THE NEW EDIT PAGE
+import 'role_edit_page.dart';
 
 class RoleListPage extends StatefulWidget {
   const RoleListPage({super.key});
@@ -26,26 +26,96 @@ class _RoleListPageState extends State<RoleListPage> {
     return rolesData.map((json) => Role.fromJson(json)).toList();
   }
 
-  // 2. NEW: Method to handle navigation and refreshing
+  void _refreshRoles() {
+    setState(() {
+      _rolesFuture = _loadRoles();
+    });
+  }
+
   void _navigateToEditPage(Role role) async {
-    // Use `await` to wait for the edit page to be closed
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (context) => RoleEditPage(role: role)),
     );
-
-    // If the edit page returned 'true' (meaning a change was made),
-    // refresh the role list.
     if (result == true) {
-      setState(() {
-        _rolesFuture = _loadRoles();
-      });
+      _refreshRoles();
     }
+  }
+
+  // 1. NEW: Method to show the create role dialog
+  void _showCreateRoleDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create New Role'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Role Name'),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a role name.';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final success = await _apiService.createRole(
+                    nameController.text.trim(),
+                  );
+                  if (mounted) {
+                    Navigator.of(context).pop(); // Close the dialog
+                    if (success) {
+                      _refreshRoles(); // Refresh the list to show the new role
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Role created successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Failed to create role. The name might already exist.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Manage Roles')),
+      // 2. NEW: Add the Floating Action Button
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateRoleDialog,
+        tooltip: 'Create Role',
+        child: const Icon(Icons.add),
+      ),
       body: FutureBuilder<List<Role>>(
         future: _rolesFuture,
         builder: (context, snapshot) {
@@ -88,7 +158,6 @@ class _RoleListPageState extends State<RoleListPage> {
                     ),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  // 3. UPDATE the onTap to call our new method
                   onTap: () => _navigateToEditPage(role),
                 ),
               );

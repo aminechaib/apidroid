@@ -286,6 +286,30 @@ class ApiService {
       return false;
     }
   }
+  // --- Create a new Role ---
+Future<bool> createRole(String name) async {
+  final headers = await _getAuthHeaders(isPost: true);
+  if (headers == null) return false;
+  final url = Uri.parse('$baseUrl/roles');
+  try {
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({'name': name} ), // We only need to send the name
+    );
+    if (response.statusCode == 201) {
+      return true; // Successfully created
+    } else {
+      print('Failed to create role: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('An error occurred while creating role: $e');
+    return false;
+  }
+}
+
 
   // --- NEW: Revoke a Permission from a Role ---
   Future<bool> revokePermissionFromRole(int roleId, int permissionId) async {
@@ -307,3 +331,5 @@ class ApiService {
     }
   }
 }
+
+
